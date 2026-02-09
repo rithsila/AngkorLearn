@@ -10,5 +10,5 @@ GRANT ALL PRIVILEGES ON DATABASE learningos TO dev;
 -- Log initialization
 DO $$
 BEGIN
-    RAISE NOTICE 'Learning OS database initialized successfully';
+    RAISE NOTICE 'AngkorLearn database initialized successfully';
 END $$;
