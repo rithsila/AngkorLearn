@@ -2,7 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { contentApi, ApiError } from '@/lib/api';
 
 export default function UploadPage() {
   const [isDragging, setIsDragging] = useState(false);
@@ -10,6 +12,9 @@ export default function UploadPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -30,16 +35,24 @@ export default function UploadPage() {
       if (!title) {
         setTitle(droppedFile.name.replace('.pdf', ''));
       }
+      setError(null);
+    } else {
+      setError('Only PDF files are allowed');
     }
   }, [title]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      if (selectedFile.type !== 'application/pdf') {
+        setError('Only PDF files are allowed');
+        return;
+      }
       setFile(selectedFile);
       if (!title) {
         setTitle(selectedFile.name.replace('.pdf', ''));
       }
+      setError(null);
     }
   };
 
@@ -48,9 +61,24 @@ export default function UploadPage() {
     if (!file) return;
     
     setIsUploading(true);
-    // TODO: Implement upload
-    console.log('Upload:', { file, title, description });
-    setTimeout(() => setIsUploading(false), 2000);
+    setError(null);
+    setUploadProgress(10);
+
+    try {
+      setUploadProgress(30);
+      const result = await contentApi.upload(file, title, description);
+      setUploadProgress(100);
+      
+      // Brief delay to show completion
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Upload failed. Please try again.';
+      setError(message);
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   return (
@@ -69,6 +97,12 @@ export default function UploadPage() {
               Upload a PDF or ebook to start learning with AI
             </p>
           </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Drop Zone */}
@@ -150,6 +184,22 @@ export default function UploadPage() {
                 placeholder="Brief description of the content..."
               />
             </div>
+
+            {/* Progress Bar */}
+            {isUploading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Uploading & Processing...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Submit */}
             <button

@@ -1,6 +1,7 @@
 import pdfParse from 'pdf-parse';
 import { prisma } from '../../config/database.js';
 import { readFile } from './storage.service.js';
+import { processContentEmbeddings } from './embedding.service.js';
 
 export async function processContent(contentId: string): Promise<void> {
   console.log(`🔄 Processing content: ${contentId}`);
@@ -57,7 +58,20 @@ export async function processContent(contentId: string): Promise<void> {
 
     await prisma.content.update({
       where: { id: contentId },
-      data: { processingProgress: 70 },
+      data: { processingProgress: 60 },
+    });
+
+    // Generate and store embeddings in Qdrant
+    try {
+      await processContentEmbeddings(contentId);
+    } catch (embeddingError) {
+      console.warn(`⚠️ Embedding generation failed (non-fatal):`, embeddingError);
+      // Continue processing even if embeddings fail
+    }
+
+    await prisma.content.update({
+      where: { id: contentId },
+      data: { processingProgress: 80 },
     });
 
     // Create learning map
@@ -72,7 +86,7 @@ export async function processContent(contentId: string): Promise<void> {
 
     await prisma.content.update({
       where: { id: contentId },
-      data: { processingProgress: 90 },
+      data: { processingProgress: 95 },
     });
 
     // Update content status to ready

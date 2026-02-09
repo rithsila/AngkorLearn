@@ -2,19 +2,26 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { register, isLoading, error, clearError } = useAuthStore();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // TODO: Implement registration
-    console.log('Register:', { name, email, password });
-    setTimeout(() => setIsLoading(false), 1000);
+    clearError();
+    
+    try {
+      await register(email, password, name || undefined);
+      router.push('/dashboard');
+    } catch {
+      // Error is handled by the store
+    }
   };
 
   return (
@@ -43,6 +50,12 @@ export default function RegisterPage() {
             Start learning with AI today
           </p>
 
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -54,7 +67,6 @@ export default function RegisterPage() {
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
                 placeholder="John Doe"
-                required
               />
             </div>
 

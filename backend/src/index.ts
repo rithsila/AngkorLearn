@@ -7,6 +7,7 @@ import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import { env } from './config/env.js';
+import { initQdrantCollection } from './config/qdrant.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { contentRoutes } from './modules/content/content.routes.js';
 import { learningRoutes } from './modules/learning/learning.routes.js';
@@ -88,6 +89,9 @@ async function buildApp() {
 // Start server
 const start = async () => {
   try {
+    // Initialize Qdrant collection
+    await initQdrantCollection();
+    
     const server = await buildApp();
     await server.listen({ port: env.PORT, host: '0.0.0.0' });
     console.log(`🚀 Server running on http://localhost:${env.PORT}`);

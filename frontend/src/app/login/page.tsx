@@ -2,18 +2,25 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading, error, clearError } = useAuthStore();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // TODO: Implement login
-    console.log('Login:', { email, password });
-    setTimeout(() => setIsLoading(false), 1000);
+    clearError();
+    
+    try {
+      await login(email, password);
+      router.push('/dashboard');
+    } catch {
+      // Error is handled by the store
+    }
   };
 
   return (
@@ -30,6 +37,12 @@ export default function LoginPage() {
           <p className="text-gray-600 mb-8">
             Log in to continue your learning journey
           </p>
+
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
