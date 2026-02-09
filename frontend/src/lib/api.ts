@@ -180,3 +180,34 @@ export const contentApi = {
 };
 
 export { ApiError };
+
+// Axios-style API wrapper for compatibility
+const api = {
+  get: async <T>(endpoint: string): Promise<{ data: { data: T } }> => {
+    const data = await fetcher<T>(endpoint);
+    return { data: { data } };
+  },
+  
+  post: async <T>(endpoint: string, body?: unknown): Promise<{ data: { data: T; message?: string } }> => {
+    const data = await fetcher<T>(endpoint, {
+      method: 'POST',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { data: { data } };
+  },
+  
+  put: async <T>(endpoint: string, body?: unknown): Promise<{ data: { data: T } }> => {
+    const data = await fetcher<T>(endpoint, {
+      method: 'PUT',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { data: { data } };
+  },
+  
+  delete: async <T>(endpoint: string): Promise<{ data: { data: T } }> => {
+    const data = await fetcher<T>(endpoint, { method: 'DELETE' });
+    return { data: { data } };
+  },
+};
+
+export default api;

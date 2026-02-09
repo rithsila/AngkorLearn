@@ -12,6 +12,7 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { contentRoutes } from './modules/content/content.routes.js';
 import { learningRoutes } from './modules/learning/learning.routes.js';
 import { aiRoutes } from './modules/ai/ai.routes.js';
+import { notesRoutes } from './modules/notes/notes.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
 const app = Fastify({
@@ -64,6 +65,7 @@ async function buildApp() {
   await app.register(contentRoutes, { prefix: '/api/content' });
   await app.register(learningRoutes, { prefix: '/api/learning' });
   await app.register(aiRoutes, { prefix: '/api/ai' });
+  await app.register(notesRoutes, { prefix: '/api/notes' });
 
   // Error handler
   app.setErrorHandler((error, request, reply) => {
