@@ -1,0 +1,26 @@
+{
+    "name": "angkorlearn",
+    "version": "0.0.1",
+    "private": true,
+    "description": "AngkorLearn - AI-powered learning platform for Cambodia",
+    "scripts": {
+        "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
+        "build": "pnpm --filter backend build && pnpm --filter frontend build",
+        "lint": "pnpm -r lint",
+        "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+        "db:migrate": "pnpm --filter backend prisma:migrate",
+        "db:studio": "pnpm --filter backend prisma:studio",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "clean": "rm -rf node_modules && pnpm -r exec rm -rf node_modules"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "prettier": "^3.2.5",
+        "typescript": "^5.4.2"
+    },
+    "engines": {
+        "node": ">=20.0.0",
+        "pnpm": ">=8.0.0"
+    }
+}

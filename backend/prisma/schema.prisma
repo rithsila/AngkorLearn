@@ -1,0 +1,463 @@
+// Prisma Schema for Learning OS
+// Based on Database Schema.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================
+// CORE TABLES
+// ================================
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  name          String?
+  avatarUrl     String?  @map("avatar_url")
+  role          UserRole @default(USER)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  contents         Content[]
+  learningSessions LearningSession[]
+  userNotes        UserNote[]
+  purchases        Purchase[]
+  donations        Donation[]        @relation("DonationsSent")
+  donationsReceived Donation[]       @relation("DonationsReceived")
+  payouts          Payout[]
+  contentRatings   ContentRating[]
+  paymentSettings  CreatorPaymentSettings?
+  subscription     Subscription?
+  engagements      EngagementTracking[]
+  contentAccess    ContentAccess[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  CREATOR
+  ADMIN
+}
+
+model Content {
+  id                 String           @id @default(uuid())
+  userId             String           @map("user_id")
+  title              String
+  description        String?
+  originalFilename   String           @map("original_filename")
+  fileUrl            String           @map("file_url")
+  fileSizeBytes      Int?             @map("file_size_bytes")
+  coverImageUrl      String?          @map("cover_image_url")
+  status             ContentStatus    @default(PENDING)
+  visibility         ContentVisibility @default(PRIVATE)
+  isPlatformContent  Boolean          @default(false) @map("is_platform_content")
+  priceCents         Int?             @map("price_cents")
+  currency           String           @default("USD")
+  acceptDonations    Boolean          @default(false) @map("accept_donations")
+  donationMessage    String?          @map("donation_message")
+  salesCount         Int              @default(0) @map("sales_count")
+  ratingAverage      Float?           @map("rating_average")
+  ratingCount        Int              @default(0) @map("rating_count")
+  category           String?
+  processingProgress Int              @default(0) @map("processing_progress")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sections         ContentSection[]
+  learningMaps     LearningMap[]
+  learningSessions LearningSession[]
+  purchases        Purchase[]
+  ratings          ContentRating[]
+  engagements      EngagementTracking[]
+  contentAccess    ContentAccess[]
+  bundleContents   BundleContent[]
+
+  @@map("contents")
+}
+
+enum ContentStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+enum ContentVisibility {
+  PRIVATE
+  SHARED
+  PUBLIC
+  PAID
+  PLATFORM
+}
+
+model ContentSection {
+  id            String   @id @default(uuid())
+  contentId     String   @map("content_id")
+  title         String
+  contentText   String   @map("content_text")
+  sectionOrder  Int      @map("section_order")
+  pageStart     Int?     @map("page_start")
+  pageEnd       Int?     @map("page_end")
+  embeddingId   String?  @map("embedding_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  content  Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  concepts Concept[]
+
+  @@map("content_sections")
+}
+
+model LearningMap {
+  id                String   @id @default(uuid())
+  contentId         String   @map("content_id")
+  totalConcepts     Int      @map("total_concepts")
+  estimatedDuration Int      @map("estimated_duration")
+  difficultyLevel   String   @map("difficulty_level")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // Relations
+  content  Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  concepts Concept[]
+
+  @@map("learning_maps")
+}
+
+model Concept {
+  id               String   @id @default(uuid())
+  learningMapId    String   @map("learning_map_id")
+  sectionId        String?  @map("section_id")
+  title            String
+  description      String?
+  conceptOrder     Int      @map("concept_order")
+  difficulty       Int      @default(1)
+  estimatedMinutes Int      @default(10) @map("estimated_minutes")
+  prerequisites    String[] @default([])
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  learningMap  LearningMap    @relation(fields: [learningMapId], references: [id], onDelete: Cascade)
+  section      ContentSection? @relation(fields: [sectionId], references: [id])
+  interactions Interaction[]
+
+  @@map("concepts")
+}
+
+model LearningSession {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  contentId       String        @map("content_id")
+  currentConceptId String?      @map("current_concept_id")
+  status          SessionStatus @default(ACTIVE)
+  progress        Float         @default(0)
+  totalTimeMinutes Int          @default(0) @map("total_time_minutes")
+  lastActiveAt    DateTime?     @map("last_active_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content      Content       @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  interactions Interaction[]
+  userNotes    UserNote[]
+
+  @@map("learning_sessions")
+}
+
+enum SessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model Interaction {
+  id                 String          @id @default(uuid())
+  sessionId          String          @map("session_id")
+  conceptId          String?         @map("concept_id")
+  role               AIRole
+  userMessage        String?         @map("user_message")
+  aiResponse         String?         @map("ai_response")
+  interactionType    InteractionType @map("interaction_type")
+  confidenceScore    Float?          @map("confidence_score")
+  tokensUsed         Int?            @map("tokens_used")
+  createdAt          DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  session LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  concept Concept?        @relation(fields: [conceptId], references: [id])
+
+  @@map("interactions")
+}
+
+enum AIRole {
+  TUTOR
+  EXAMINER
+  COACH
+  PLANNER
+  REVIEWER
+}
+
+enum InteractionType {
+  EXPLANATION
+  QUESTION
+  QUIZ
+  FEEDBACK
+  ENCOURAGEMENT
+  SUMMARY
+}
+
+model UserNote {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  sessionId String   @map("session_id")
+  noteText  String   @map("note_text")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("user_notes")
+}
+
+// ================================
+// MONETIZATION TABLES
+// ================================
+
+model ContentAccess {
+  id           String        @id @default(uuid())
+  contentId    String        @map("content_id")
+  userId       String?       @map("user_id")
+  accessType   AccessType    @map("access_type")
+  inviteEmail  String?       @map("invite_email")
+  shareToken   String?       @unique @map("share_token")
+  expiresAt    DateTime?     @map("expires_at")
+  acceptedAt   DateTime?     @map("accepted_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@map("content_access")
+}
+
+enum AccessType {
+  INVITE
+  LINK
+  PURCHASE
+  SUBSCRIPTION
+}
+
+model Purchase {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  contentId       String   @map("content_id")
+  bundleId        String?  @map("bundle_id")
+  amountCents     Int      @map("amount_cents")
+  currency        String   @default("USD")
+  platformFeeCents Int     @map("platform_fee_cents")
+  creatorEarningsCents Int @map("creator_earnings_cents")
+  paymentProvider String   @map("payment_provider")
+  externalId      String?  @map("external_id")
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  bundle  Bundle?  @relation(fields: [bundleId], references: [id])
+
+  @@map("purchases")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Donation {
+  id              String   @id @default(uuid())
+  senderId        String   @map("sender_id")
+  recipientId     String   @map("recipient_id")
+  contentId       String?  @map("content_id")
+  amountCents     Int      @map("amount_cents")
+  currency        String   @default("USD")
+  message         String?
+  paymentMethod   String   @map("payment_method")
+  externalId      String?  @map("external_id")
+  isTracked       Boolean  @default(true) @map("is_tracked")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  sender    User @relation("DonationsSent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("DonationsReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("donations")
+}
+
+model Payout {
+  id              String       @id @default(uuid())
+  userId          String       @map("user_id")
+  amountCents     Int          @map("amount_cents")
+  currency        String       @default("USD")
+  payoutMethod    String       @map("payout_method")
+  payoutDetails   Json         @map("payout_details")
+  status          PayoutStatus @default(PENDING)
+  processedAt     DateTime?    @map("processed_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payouts")
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model ContentRating {
+  id        String   @id @default(uuid())
+  contentId String   @map("content_id")
+  userId    String   @map("user_id")
+  rating    Int
+  review    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contentId, userId])
+  @@map("content_ratings")
+}
+
+model CreatorPaymentSettings {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  paddleEnabled   Boolean  @default(false) @map("paddle_enabled")
+  abaKhqrEnabled  Boolean  @default(false) @map("aba_khqr_enabled")
+  abaKhqrImageUrl String?  @map("aba_khqr_image_url")
+  abaDisplayName  String?  @map("aba_display_name")
+  paypalEnabled   Boolean  @default(false) @map("paypal_enabled")
+  paypalEmail     String?  @map("paypal_email")
+  payoutMethod    String?  @map("payout_method")
+  payoutDetails   Json?    @map("payout_details")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("creator_payment_settings")
+}
+
+// ================================
+// SUBSCRIPTION TABLES
+// ================================
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String             @unique @map("user_id")
+  planType           SubscriptionPlan   @map("plan_type")
+  status             SubscriptionStatus @default(ACTIVE)
+  externalId         String?            @map("external_id")
+  currentPeriodStart DateTime           @map("current_period_start")
+  currentPeriodEnd   DateTime           @map("current_period_end")
+  canceledAt         DateTime?          @map("canceled_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionPlan {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  EXPIRED
+}
+
+model EngagementTracking {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  contentId String   @map("content_id")
+  creatorId String   @map("creator_id")
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  timeSpentMinutes Int @map("time_spent_minutes")
+  interactionCount Int @map("interaction_count")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId, periodStart])
+  @@map("engagement_tracking")
+}
+
+// ================================
+// BUNDLE TABLES
+// ================================
+
+model Bundle {
+  id              String       @id @default(uuid())
+  creatorId       String?      @map("creator_id")
+  name            String
+  description     String?
+  priceCents      Int          @map("price_cents")
+  currency        String       @default("USD")
+  discountPercent Int          @map("discount_percent")
+  isPlatformBundle Boolean     @default(false) @map("is_platform_bundle")
+  isActive        Boolean      @default(true) @map("is_active")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  contents  BundleContent[]
+  purchases Purchase[]
+
+  @@map("bundles")
+}
+
+model BundleContent {
+  id              String   @id @default(uuid())
+  bundleId        String   @map("bundle_id")
+  contentId       String   @map("content_id")
+  revenueSharePercent Int  @map("revenue_share_percent")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bundle  Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, contentId])
+  @@map("bundle_contents")
+}

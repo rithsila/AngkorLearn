@@ -1,0 +1,12 @@
+packages:
+  - backend
+  - frontend
+  - packages/*
+
+ignoredBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - esbuild
+  - msgpackr-extract
+  - prisma
+  - unrs-resolver
